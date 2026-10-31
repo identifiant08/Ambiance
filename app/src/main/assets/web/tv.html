@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ambiance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tv.css">
+</head>
+<body>
+  <div id="backdrop" aria-hidden="true"><div class="bd-layer"></div><div class="bd-layer"></div><div class="bd-shade"></div></div>
+
+  <!-- Accueil -->
+  <section id="home" class="screen">
+    <header class="top">
+      <div class="clock" id="clock"></div>
+      <div class="remote-hint" id="remoteHint"></div>
+    </header>
+    <div class="hero">
+      <p class="greet" id="greet">Bonsoir</p>
+      <h1>What's your mood today?</h1>
+      <p class="focus-line" id="focusLine"></p>
+    </div>
+    <div class="rail" id="moodRail"></div>
+    <nav class="actions">
+      <button class="nav pill" id="btnResume" hidden></button>
+      <button class="nav pill" id="btnSearch">Rechercher une playlist</button>
+      <button class="nav pill ghost" id="btnSettings">Réglages</button>
+    </nav>
+  </section>
+
+  <!-- Page d'une humeur -->
+  <section id="mood" class="screen">
+    <div class="mood-head">
+      <h2 id="moodTitle"></h2>
+      <p id="moodLine"></p>
+      <div class="mood-ctas">
+        <button class="nav pill primary" id="btnPlayMood">Lancer l'ambiance</button>
+        <button class="nav pill ghost" id="btnShuffleMood">Lecture aléatoire</button>
+      </div>
+    </div>
+    <div class="results" id="moodResults"></div>
+  </section>
+
+  <!-- Recherche -->
+  <section id="search" class="screen">
+    <div class="search-head">
+      <h2>Rechercher</h2>
+      <form id="searchForm" autocomplete="off">
+        <input class="nav field" id="searchInput" type="search" placeholder="Pluie sur Tokyo, jazz de minuit, cheminée 4K…" enterkeyhint="search">
+      </form>
+      <p class="hint">Astuce : tape plus vite depuis ton téléphone, onglet Recherche de la télécommande.</p>
+    </div>
+    <div class="results" id="searchResults"></div>
+  </section>
+
+  <!-- Réglages -->
+  <section id="settings" class="screen">
+    <div class="settings-wrap">
+      <h2>Réglages</h2>
+      <div class="row">
+        <button class="nav pill" id="btnQuality">Qualité maximale : 1080p</button>
+        <button class="nav pill" id="btnUpdate">Mettre à jour yt-dlp</button>
+        <button class="nav pill ghost" id="btnClearCache">Vider le cache</button>
+      </div>
+      <p class="status" id="ytdlpStatus"></p>
+      <p class="lbl">Si une vidéo refuse de se lancer, YouTube a souvent changé quelque chose : mets à jour yt-dlp. L'appli le fait aussi toute seule une fois par jour.</p>
+      <ol class="steps">
+        <li>Ouvre Ambiance sur ton téléphone, il trouve la TV tout seul.</li>
+        <li>Ou ouvre <strong id="remoteUrl">l'adresse de la TV</strong> dans n'importe quel navigateur du même Wi-Fi.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Lecteur -->
+  <section id="player" class="screen">
+    <div class="loader" id="loader"><div class="loader-art alive" id="loaderArt"></div><div class="loader-shade"></div><p class="loader-msg" id="loaderMsg"></p></div>
+    <div class="veil" id="veil"></div>
+    <div class="osd" id="osd">
+      <div class="osd-info">
+        <p class="osd-mood" id="osdMood"></p>
+        <p class="osd-title" id="osdTitle"></p>
+        <p class="osd-pos" id="osdPos"></p>
+      </div>
+      <div class="osd-bar">
+        <button class="nav ctl" data-act="prev">Précédent</button>
+        <button class="nav ctl main" data-act="toggle" id="ctlToggle">Pause</button>
+        <button class="nav ctl" data-act="next">Suivant</button>
+        <button class="nav ctl" data-act="shuffle" id="ctlShuffle">Aléatoire : non</button>
+        <button class="nav ctl" data-act="sleep" id="ctlSleep">Minuterie : non</button>
+        <button class="nav ctl" data-act="moods">Changer d'ambiance</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="moods.js"></script>
+  <script src="tv.js"></script>
+</body>
+</html>

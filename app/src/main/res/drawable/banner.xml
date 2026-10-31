@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bannière Google TV 320x180 : nuit, lune et montagnes -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path android:fillColor="#0D1524" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#16223A" android:pathData="M0,0h320v110h-320z" />
+    <path android:strokeColor="#6FF0B4" android:strokeAlpha="0.35" android:strokeWidth="14"
+        android:pathData="M-10,70 C60,30 120,70 180,48 C240,26 280,52 330,36" />
+    <path android:strokeColor="#9A7CFF" android:strokeAlpha="0.25" android:strokeWidth="9"
+        android:pathData="M-10,48 C70,14 130,46 190,28 C250,10 290,30 330,18" />
+    <path android:fillColor="#F2A65A" android:fillAlpha="0.25" android:pathData="M236,62m-30,0a30,30 0,1 1,60 0a30,30 0,1 1,-60 0" />
+    <path android:fillColor="#ECE6D6" android:pathData="M236,62m-19,0a19,19 0,1 1,38 0a19,19 0,1 1,-38 0" />
+    <path android:fillColor="#24314D" android:pathData="M0,132 L50,96 L84,118 L130,84 L178,122 L222,98 L268,124 L320,104 L320,180 L0,180 Z" />
+    <path android:fillColor="#0A1120" android:pathData="M0,152 L40,134 L80,148 L130,128 L190,150 L250,132 L320,150 L320,180 L0,180 Z" />
+</vector>
