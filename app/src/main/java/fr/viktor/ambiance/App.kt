@@ -12,8 +12,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.concurrent.read
 import kotlin.concurrent.write
 
 class App : Application() {
@@ -31,8 +31,38 @@ class App : Application() {
         /** Une mise à jour de yt-dlp ne doit jamais remplacer les fichiers pendant qu'il tourne. */
         private val ytLock = ReentrantReadWriteLock()
 
-        fun ytdlp(req: YoutubeDLRequest): YoutubeDLResponse =
-            ytLock.read { YoutubeDL.getInstance().execute(req) }
+        /**
+         * Lance yt-dlp avec un délai maximum : sur le Mi Box, un yt-dlp bloqué
+         * ne doit jamais laisser l'écran figé sur « Je prépare… ».
+         */
+        fun ytdlp(req: YoutubeDLRequest, timeoutSec: Long = 90): YoutubeDLResponse {
+            // Cache des fichiers du lecteur YouTube : évite de tout recalculer à chaque vidéo
+            req.addOption("--cache-dir", File(instance.cacheDir, "yt-dlp").absolutePath)
+            req.addOption("--no-warnings")
+            // Si une mise à jour est en cours, on ne l'attend pas indéfiniment
+            val locked = ytLock.readLock().tryLock(20, TimeUnit.SECONDS)
+            val id = "ytdlp-" + System.nanoTime()
+            val watchdog = Thread {
+                try {
+                    Thread.sleep(timeoutSec * 1000)
+                    runCatching { YoutubeDL.getInstance().destroyProcessById(id) }
+                } catch (_: InterruptedException) {
+                }
+            }.apply { isDaemon = true; start() }
+            try {
+                lastUse = System.currentTimeMillis()
+                return YoutubeDL.getInstance().execute(req, id).also { lastUse = System.currentTimeMillis() }
+            } catch (e: Exception) {
+                if (!watchdog.isAlive) throw IllegalStateException("yt-dlp n'a pas répondu en $timeoutSec s")
+                throw e
+            } finally {
+                watchdog.interrupt()
+                if (locked) ytLock.readLock().unlock()
+            }
+        }
+
+        /** Aucun appel yt-dlp en cours ou récent : on peut le mettre à jour sans gêner. */
+        @Volatile var lastUse = 0L
 
         /** Met yt-dlp à jour (canal nightly, le plus réactif aux changements de YouTube). */
         fun updateYtDlp(ctx: Context): String = ytLock.write {
@@ -82,8 +112,11 @@ class App : Application() {
                 ytdlpVersion = YoutubeDL.getInstance().version(this@App).orEmpty()
             }
             ready.complete(result)
-            // Mise à jour automatique au plus une fois par jour
+            // Mise à jour automatique au plus une fois par jour, seulement quand
+            // personne n'utilise yt-dlp depuis 2 minutes (jamais pendant un chargement)
             if (result.isSuccess && System.currentTimeMillis() - Prefs.lastUpdate > 24 * 3600_000L) {
+                kotlinx.coroutines.delay(180_000L)
+                while (System.currentTimeMillis() - lastUse < 120_000L) kotlinx.coroutines.delay(15_000L)
                 runCatching { updateYtDlp(this@App) }
             }
         }

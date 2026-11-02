@@ -336,12 +336,23 @@
     if (MOCK) { setTimeout(() => onPlayer({ status: 'playing', title: item.title + ' (maquette)', index: 0, count: 8, shuffle }), 1200); return; }
     A.play(JSON.stringify({ type: item.type, id: item.id, title: item.title, shuffle }));
   }
+  // Compteur de secondes pendant le chargement : on voit que ça avance
+  let waitStart = 0, waitTimer = null;
   function setStatus(s, msg) {
     pstatus = s;
-    const loading = s === 'resolving' || s === 'buffering' || s === 'error';
-    $('#loader').classList.toggle('show', loading);
+    const loading = s === 'resolving' || s === 'buffering';
+    $('#loader').classList.toggle('show', loading || s === 'error');
     $('#loader').classList.toggle('err', s === 'error');
     if (msg) $('#loaderMsg').textContent = msg;
+    if (loading && !waitTimer) {
+      waitStart = Date.now();
+      waitTimer = setInterval(() => {
+        const sec = Math.round((Date.now() - waitStart) / 1000);
+        $('#loaderTime').textContent = sec >= 5 ? sec + ' s' : '';
+      }, 1000);
+    } else if (!loading && waitTimer) {
+      clearInterval(waitTimer); waitTimer = null; $('#loaderTime').textContent = '';
+    }
   }
   // Appelé par le natif à chaque changement d'état du lecteur
   function onPlayer(p) {

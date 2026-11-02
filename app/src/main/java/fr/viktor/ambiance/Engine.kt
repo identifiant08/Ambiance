@@ -168,7 +168,9 @@ class Engine(ctx: Context, private val onEvent: (JSONObject) -> Unit) {
         job = scope.launch {
             emit("resolving", message = "Je prépare « ${e.title.take(60)} »")
             val s = try {
-                withContext(Dispatchers.IO) { Resolver.streams(e.id, maxHeight) }
+                withContext(Dispatchers.IO) {
+                    Resolver.streams(e.id, maxHeight) { step -> scope.launch { emit("resolving", message = step) } }
+                }
             } catch (ex: Exception) {
                 skip("Vidéo indisponible, je passe à la suivante", ex)
                 return@launch

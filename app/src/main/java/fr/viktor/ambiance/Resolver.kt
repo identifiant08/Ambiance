@@ -37,7 +37,7 @@ object Resolver {
         req.addOption("--flat-playlist")
         req.addOption("--playlist-end", "300")
         req.addOption("-J")
-        val root = JSONObject(App.ytdlp(req).out)
+        val root = JSONObject(App.ytdlp(req, 120).out)
         val entries = root.optJSONArray("entries") ?: return emptyList()
         return (0 until entries.length()).mapNotNull { i ->
             val e = entries.optJSONObject(i) ?: return@mapNotNull null
@@ -67,21 +67,43 @@ object Resolver {
         }
     }
 
-    fun streams(id: String, maxHeight: Int): Streams {
+    fun streams(id: String, maxHeight: Int, onStep: (String) -> Unit = {}): Streams {
         val key = "$id@$maxHeight"
         cache[key]?.let { if (System.currentTimeMillis() - it.at < TTL) return it }
         ensureReady()
 
+        // 1er essai : client « android_vr », qui donne des flux directs sans avoir à
+        // exécuter le code JavaScript de YouTube (très lent sur le processeur du Mi Box).
+        // 2e essai : réglages par défaut de yt-dlp, plus lents mais plus complets.
+        val attempts = listOf(
+            "youtube:player_client=android_vr" to 60L,
+            null to 150L,
+        )
+        var last: Exception? = null
+        for ((i, attempt) in attempts.withIndex()) {
+            if (i > 0) onStep("Méthode de secours, cela peut prendre une minute")
+            try {
+                val s = extract(id, maxHeight, attempt.first, attempt.second)
+                cache[key] = s
+                return s
+            } catch (e: Exception) {
+                last = e
+            }
+        }
+        throw last ?: IllegalStateException("aucun flux")
+    }
+
+    private fun extract(id: String, maxHeight: Int, extractorArgs: String?, timeout: Long): Streams {
         val req = YoutubeDLRequest("https://www.youtube.com/watch?v=$id")
         req.addOption("--no-playlist")
-        req.addOption("--no-warnings")
+        if (extractorArgs != null) req.addOption("--extractor-args", extractorArgs)
         req.addOption("-f", formatFor(maxHeight))
         req.addOption("-J")
-        val o = JSONObject(App.ytdlp(req).out)
+        val o = JSONObject(App.ytdlp(req, timeout).out)
 
         val title = o.optString("title")
         val requested = o.optJSONArray("requested_formats")
-        val s = if (requested != null && requested.length() >= 2) {
+        return if (requested != null && requested.length() >= 2) {
             val v = requested.getJSONObject(0)
             val a = requested.getJSONObject(1)
             Streams(v.getString("url"), a.getString("url"), headers(v, o), headers(a, o), title, v.optInt("height"))
@@ -89,8 +111,6 @@ object Resolver {
             val url = o.optString("url").ifBlank { error("yt-dlp n'a renvoyé aucun flux") }
             Streams(url, null, headers(o, o), emptyMap(), title, o.optInt("height"))
         }
-        cache[key] = s
-        return s
     }
 
     private fun headers(fmt: JSONObject, root: JSONObject): Map<String, String> {

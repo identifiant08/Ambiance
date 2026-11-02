@@ -95,6 +95,8 @@ html.playing,html.playing body{background:transparent}
 .loader-msg{position:absolute;left:0;right:0;top:44%;text-align:center;font-family:var(--serif);font-size:1.5rem}
 .loader-msg::after{content:'';display:inline-block;width:.55rem;height:.55rem;margin-left:.7rem;border-radius:50%;background:var(--ember);vertical-align:middle;animation:pulse 1s ease-in-out infinite}
 .loader.err .loader-msg::after{display:none}
+.loader-msg{padding:0 4rem}
+.loader-time{position:absolute;left:0;right:0;top:56%;text-align:center;color:var(--moon-dim);font-size:.9rem}
 .osd-pos{color:var(--moon-dim);font-size:.8rem;margin-top:.3rem;min-height:1em}
 .veil{position:absolute;inset:0}
 .osd{position:absolute;left:0;right:0;bottom:0;padding:5rem 3rem 2rem;background:linear-gradient(0deg, rgba(5,8,14,.92), rgba(5,8,14,0));opacity:0;transform:translateY(1rem);transition:opacity .35s ease, transform .35s ease}
