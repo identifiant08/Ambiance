@@ -2,7 +2,12 @@ package fr.viktor.ambiance
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.CookieHandler
+import java.net.CookieManager
+import java.net.CookiePolicy
+import java.net.HttpCookie
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 
 /**
@@ -43,6 +48,55 @@ object NativeYt {
             .put("osName", "Android")
             .put("osVersion", "12L")),
     )
+
+    // ---------- Session visiteur (comme yt-dlp) ----------
+
+    /**
+     * YouTube refuse les requêtes « anonymes » (« confirmez que vous n'êtes pas un robot »).
+     * Comme yt-dlp, on ouvre d'abord une page YouTube : on récupère l'identifiant de visiteur
+     * (visitorData) et les cookies de session, réutilisés ensuite pour chaque vidéo.
+     */
+    @Volatile private var visitor: String? = null
+    @Volatile private var visitorAt = 0L
+
+    private val cookies: CookieManager by lazy {
+        (CookieHandler.getDefault() as? CookieManager) ?: CookieManager(null, CookiePolicy.ACCEPT_ALL).also {
+            CookieHandler.setDefault(it)
+        }
+    }
+
+    @Synchronized
+    private fun visitorData(force: Boolean = false): String? {
+        if (!force && visitor != null && System.currentTimeMillis() - visitorAt < 30 * 60_000L) return visitor
+        // Consentement RGPD déjà « refusé » : évite la page de consentement européenne
+        runCatching {
+            cookies.cookieStore.add(URI("https://www.youtube.com/"), HttpCookie("SOCS", "CAI").apply {
+                domain = ".youtube.com"; path = "/"; version = 0
+            })
+        }
+        val fromPage = runCatching {
+            val c = (URL("https://www.youtube.com/?hl=fr&persist_hl=1").openConnection() as HttpURLConnection).apply {
+                connectTimeout = 10_000
+                readTimeout = 15_000
+                setRequestProperty("User-Agent", WEB_UA)
+                setRequestProperty("Accept-Language", "fr-FR,fr;q=0.9")
+            }
+            try {
+                val html = c.inputStream.bufferedReader().use { it.readText() }
+                Regex("\"VISITOR_DATA\"\\s*:\\s*\"([^\"]+)\"").find(html)?.groupValues?.get(1)
+            } finally {
+                c.disconnect()
+            }
+        }.getOrNull()
+        val v = fromPage ?: runCatching {
+            post("guide", JSONObject().put("context", webContext()), webHeaders(null))
+                .optJSONObject("responseContext")?.optString("visitorData")?.ifBlank { null }
+        }.getOrNull()
+        Journal.add(if (v != null) "Session visiteur obtenue (${if (fromPage != null) "page" else "API"})" else "Session visiteur introuvable")
+        visitor = v
+        visitorAt = System.currentTimeMillis()
+        return v
+    }
 
     // ---------- Playlist ----------
 
@@ -88,20 +142,35 @@ object NativeYt {
     // ---------- Flux d'une vidéo ----------
 
     fun streams(id: String, maxHeight: Int): Streams {
+        return try {
+            streamsOnce(id, maxHeight, visitorData())
+        } catch (e: Exception) {
+            // Session refusée : on en prend une neuve et on réessaie une fois
+            if (e.message.orEmpty().contains("robot", true) || e.message.orEmpty().contains("bot", true)) {
+                streamsOnce(id, maxHeight, visitorData(force = true))
+            } else throw e
+        }
+    }
+
+    private fun streamsOnce(id: String, maxHeight: Int, vd: String?): Streams {
         var lastError = "aucun flux"
         for (c in CLIENTS) {
             try {
+                val client = JSONObject(c.ctx.toString()).put("hl", "fr").put("gl", "FR")
+                if (vd != null) client.put("visitorData", vd)
                 val body = JSONObject()
-                    .put("context", JSONObject().put("client", JSONObject(c.ctx.toString()).put("hl", "fr").put("gl", "FR")))
+                    .put("context", JSONObject().put("client", client))
                     .put("videoId", id)
                     .put("contentCheckOk", true)
                     .put("racyCheckOk", true)
-                val r = post("player", body, mapOf(
+                val headers = mutableMapOf(
                     "User-Agent" to c.ua,
                     "X-Youtube-Client-Name" to c.number.toString(),
                     "X-Youtube-Client-Version" to c.version,
                     "Origin" to "https://www.youtube.com",
-                ))
+                )
+                if (vd != null) headers["X-Goog-Visitor-Id"] = vd
+                val r = post("player", body, headers)
                 val ps = r.optJSONObject("playabilityStatus")
                 val name = c.ctx.optString("clientName")
                 if (ps?.optString("status") != "OK") {
@@ -167,13 +236,14 @@ object NativeYt {
     private fun webContext() = JSONObject().put("client", JSONObject()
         .put("clientName", "WEB").put("clientVersion", WEB_VERSION).put("hl", "fr").put("gl", "FR"))
 
-    private fun webHeaders() = mapOf(
-        "User-Agent" to WEB_UA,
-        "X-Youtube-Client-Name" to "1",
-        "X-Youtube-Client-Version" to WEB_VERSION,
-        "Origin" to "https://www.youtube.com",
-        "Referer" to "https://www.youtube.com/",
-    )
+    private fun webHeaders(vd: String? = visitor): Map<String, String> = buildMap {
+        put("User-Agent", WEB_UA)
+        put("X-Youtube-Client-Name", "1")
+        put("X-Youtube-Client-Version", WEB_VERSION)
+        put("Origin", "https://www.youtube.com")
+        put("Referer", "https://www.youtube.com/")
+        if (vd != null) put("X-Goog-Visitor-Id", vd)
+    }
 
     private fun post(endpoint: String, body: JSONObject, headers: Map<String, String>): JSONObject {
         val conn = (URL("https://www.youtube.com/youtubei/v1/$endpoint?prettyPrint=false").openConnection() as HttpURLConnection).apply {

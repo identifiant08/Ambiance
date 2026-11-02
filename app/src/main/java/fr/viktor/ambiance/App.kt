@@ -94,6 +94,8 @@ class App : Application() {
         super.onCreate()
         instance = this
         Prefs.init(this)
+        // Cookies de session YouTube partagés par toutes les connexions de l'appli
+        java.net.CookieHandler.setDefault(java.net.CookieManager(null, java.net.CookiePolicy.ACCEPT_ALL))
 
         // Journal des plantages, affiché au lancement suivant
         val previous = Thread.getDefaultUncaughtExceptionHandler()
