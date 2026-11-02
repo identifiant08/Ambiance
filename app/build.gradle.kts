@@ -12,8 +12,8 @@ android {
         minSdk = 26
         // 34 : pas d'affichage bord à bord forcé, la télécommande garde des barres système sombres
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         // Une seule APK pour les deux appareils :
         // Pixel 10 = arm64, Mi Box S 2e gén. = système Android TV souvent en 32 bits
@@ -43,6 +43,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+    buildFeatures {
+        buildConfig = true
     }
     kotlinOptions {
         jvmTarget = "17"

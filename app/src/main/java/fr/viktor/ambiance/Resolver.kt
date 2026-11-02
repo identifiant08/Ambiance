@@ -37,7 +37,7 @@ object Resolver {
         req.addOption("--flat-playlist")
         req.addOption("--playlist-end", "300")
         req.addOption("-J")
-        val root = JSONObject(YoutubeDL.getInstance().execute(req).out)
+        val root = JSONObject(App.ytdlp(req).out)
         val entries = root.optJSONArray("entries") ?: return emptyList()
         return (0 until entries.length()).mapNotNull { i ->
             val e = entries.optJSONObject(i) ?: return@mapNotNull null
@@ -77,7 +77,7 @@ object Resolver {
         req.addOption("--no-warnings")
         req.addOption("-f", formatFor(maxHeight))
         req.addOption("-J")
-        val o = JSONObject(YoutubeDL.getInstance().execute(req).out)
+        val o = JSONObject(App.ytdlp(req).out)
 
         val title = o.optString("title")
         val requested = o.optJSONArray("requested_formats")

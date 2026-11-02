@@ -22,30 +22,34 @@
         android:label="@string/app_name"
         android:theme="@style/Theme.Ambiance">
 
-        <!-- Sur la TV : l'écran d'ambiance (apparaît dans les applis Google TV) -->
+        <!-- Point d'entrée unique : choisit l'écran TV ou la télécommande selon l'appareil -->
         <activity
-            android:name=".PlayerActivity"
+            android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTask"
-            android:screenOrientation="sensorLandscape"
-            android:theme="@style/Theme.Ambiance.Fullscreen"
-            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode">
+            android:noHistory="true"
+            android:excludeFromRecents="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- Sur le téléphone : la télécommande -->
+        <!-- Écran d'ambiance (TV, ou lecture locale sur le téléphone) -->
+        <activity
+            android:name=".PlayerActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/Theme.Ambiance.Fullscreen"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode" />
+
+        <!-- Télécommande (téléphone) -->
         <activity
             android:name=".RemoteActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
             <!-- « Partager » depuis l'appli YouTube : la vidéo ou la playlist part sur la TV -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

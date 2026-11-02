@@ -147,7 +147,7 @@ object YtSearch {
         val req = YoutubeDLRequest("ytsearch15:$query")
         req.addOption("--flat-playlist")
         req.addOption("-J")
-        val root = JSONObject(YoutubeDL.getInstance().execute(req).out)
+        val root = JSONObject(App.ytdlp(req).out)
         val entries = root.optJSONArray("entries") ?: return emptyList()
         return (0 until entries.length()).mapNotNull { i ->
             val e = entries.optJSONObject(i) ?: return@mapNotNull null

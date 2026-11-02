@@ -39,6 +39,7 @@ class PlayerActivity : Activity(), RemoteServer.Listener {
     private lateinit var engine: Engine
     private var server: RemoteServer? = null
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile private var destroyed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,10 +71,7 @@ class PlayerActivity : Activity(), RemoteServer.Listener {
         web.loadUrl(Web.TV_PAGE)
         web.requestFocus()
 
-        server = RemoteServer(this).also {
-            it.listener = this
-            it.start()
-        }
+        server = RemoteServer.shared(this).also { it.listener = this }
         // Au premier lancement, yt-dlp met quelques secondes à s'installer
         io.launch {
             App.ready.await()
@@ -82,9 +80,16 @@ class PlayerActivity : Activity(), RemoteServer.Listener {
     }
 
     override fun onDestroy() {
-        server?.stop()
-        engine.release()
+        destroyed = true
+        server?.let {
+            if (it.listener === this) it.listener = null
+            it.state = "{}"
+        }
         io.cancel()
+        engine.release()
+        web.removeJavascriptInterface("Android")
+        web.stopLoading()
+        (web.parent as? android.view.ViewGroup)?.removeView(web)
         web.destroy()
         super.onDestroy()
     }
@@ -110,7 +115,8 @@ class PlayerActivity : Activity(), RemoteServer.Listener {
 
     /** Exécute du JS dans la page (toujours sur le fil principal). */
     private fun js(code: String) {
-        runOnUiThread { if (!isDestroyed) web.evaluateJavascript("window.app && $code", null) }
+        if (destroyed) return
+        runOnUiThread { if (!destroyed) web.evaluateJavascript("window.app && $code", null) }
     }
 
     // ---------- Télécommande physique ----------
@@ -129,11 +135,12 @@ class PlayerActivity : Activity(), RemoteServer.Listener {
             else -> null
         } ?: return super.dispatchKeyEvent(event)
 
+        if (destroyed || isFinishing) return true
         if (event.action == KeyEvent.ACTION_DOWN) {
             if (name == "BACK") {
                 // La page dit si elle a géré le retour ; sinon on quitte l'appli
                 web.evaluateJavascript("window.app ? app.onKey('BACK') : false") { r ->
-                    if (r != "true") finish()
+                    if (r != "true" && !isFinishing) finish()
                 }
             } else {
                 web.evaluateJavascript("window.app && app.onKey('$name')", null)

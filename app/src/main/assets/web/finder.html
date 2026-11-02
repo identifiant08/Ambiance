@@ -34,8 +34,9 @@ summary{cursor:pointer;font-size:14px}
 <body>
   <div class="hero alive"><div id="art" style="width:100%;height:100%"></div><div class="shade"></div><h1>Ambiance</h1></div>
   <p class="lead">Ton téléphone devient la télécommande. Ouvre Ambiance sur le Mi Box, reste sur le même Wi-Fi, la TV apparaît ici.</p>
-  <div class="scan" id="scan"><i></i><span>Recherche des TV sur le réseau</span></div>
+  <div class="scan" id="scan"><i></i><span id="scanTxt">Recherche des TV sur le réseau</span></div>
   <div class="tvs" id="tvs"></div>
+  <button class="local" id="rescan" style="margin-top:14px">Chercher à nouveau</button>
   <details>
     <summary>La TV n'apparaît pas ?</summary>
     <p style="margin-top:10px;font-size:14px;line-height:1.5">Saisis l'adresse affichée en haut de l'accueil sur la TV.</p>
@@ -48,12 +49,24 @@ summary{cursor:pointer;font-size:14px}
   document.getElementById('art').innerHTML = Ambiance.sceneSVG('aurores');
   function draw() {
     let list = [];
-    try { list = JSON.parse(F ? F.list() : '[]'); } catch (e) {}
+    let raw = '[]';
+    try { raw = F ? F.list() : '[]'; list = JSON.parse(raw); } catch (e) {}
+    if (raw === draw.last) return list.length;
+    draw.last = raw;
     document.getElementById('tvs').innerHTML = list.map((t) =>
       `<button class="tv" data-h="${t.host}" data-p="${t.port}"><b>${t.name.replace(/[<>&]/g, '')}</b><span>${t.host}</span></button>`).join('');
     document.querySelectorAll('.tv').forEach((b) => b.onclick = () => F && F.connect(b.dataset.h, +b.dataset.p));
+    return list.length;
   }
-  setInterval(draw, 1000); draw();
+  function status(n) {
+    const busy = F && F.isScanning();
+    document.querySelector('#scan i').style.display = busy ? '' : 'none';
+    document.getElementById('scanTxt').textContent = busy
+      ? 'Recherche des TV sur le réseau'
+      : (n ? 'Touche ta TV pour la piloter' : "Aucune TV trouvée. Ouvre Ambiance sur la TV et vérifie que le téléphone est sur le même Wi-Fi.");
+  }
+  setInterval(() => status(draw()), 1000); status(draw());
+  document.getElementById('rescan').onclick = () => { if (F) F.rescan(); status(0); };
   document.getElementById('manual').onsubmit = (e) => {
     e.preventDefault();
     const v = document.getElementById('addr').value.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
