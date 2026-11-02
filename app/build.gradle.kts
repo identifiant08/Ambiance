@@ -12,8 +12,8 @@ android {
         minSdk = 26
         // 34 : pas d'affichage bord à bord forcé, la télécommande garde des barres système sombres
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.4"
 
         // Une seule APK pour les deux appareils :
         // Pixel 10 = arm64, Mi Box S 2e gén. = système Android TV souvent en 32 bits
@@ -65,5 +65,6 @@ dependencies {
     implementation("io.github.junkfood02.youtubedl-android:library:$youtubedlAndroid")
     implementation("androidx.media3:media3-exoplayer:$media3")
     implementation("androidx.media3:media3-ui:$media3")
+    implementation("androidx.media3:media3-exoplayer-hls:$media3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 }

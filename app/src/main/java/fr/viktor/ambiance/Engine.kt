@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
@@ -190,6 +191,15 @@ class Engine(ctx: Context, private val onEvent: (JSONObject) -> Unit) {
                 .setConnectTimeoutMs(15_000)
                 .setReadTimeoutMs(20_000)
             return ProgressiveMediaSource.Factory(ChunkedDataSource.Factory(http))
+        }
+        if (s.hls) {
+            val http = DefaultHttpDataSource.Factory()
+                .setUserAgent(s.videoHeaders["User-Agent"] ?: "Mozilla/5.0")
+                .setDefaultRequestProperties(s.videoHeaders)
+                .setAllowCrossProtocolRedirects(true)
+            return HlsMediaSource.Factory(http).createMediaSource(
+                MediaItem.Builder().setMediaId(e.id).setUri(s.video).build()
+            )
         }
         val video = factory(s.videoHeaders).createMediaSource(
             MediaItem.Builder().setMediaId(e.id).setUri(s.video).build()

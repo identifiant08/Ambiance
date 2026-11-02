@@ -17,6 +17,7 @@ data class Streams(
     val audioHeaders: Map<String, String>,
     val title: String,
     val height: Int,
+    val hls: Boolean = false,
     val at: Long = System.currentTimeMillis(),
 )
 
@@ -32,6 +33,8 @@ object Resolver {
 
     /** Liste des vidéos d'une playlist, sans résoudre les flux (rapide). */
     fun playlist(listId: String): List<Entry> {
+        // Requête directe à YouTube (instantanée), yt-dlp seulement en secours
+        runCatching { NativeYt.playlist(listId) }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return it }
         ensureReady()
         val req = YoutubeDLRequest("https://www.youtube.com/playlist?list=$listId")
         req.addOption("--flat-playlist")
@@ -70,27 +73,23 @@ object Resolver {
     fun streams(id: String, maxHeight: Int, onStep: (String) -> Unit = {}): Streams {
         val key = "$id@$maxHeight"
         cache[key]?.let { if (System.currentTimeMillis() - it.at < TTL) return it }
-        ensureReady()
 
-        // 1er essai : client « android_vr », qui donne des flux directs sans avoir à
-        // exécuter le code JavaScript de YouTube (très lent sur le processeur du Mi Box).
-        // 2e essai : réglages par défaut de yt-dlp, plus lents mais plus complets.
-        val attempts = listOf(
-            "youtube:player_client=android_vr" to 60L,
-            null to 150L,
-        )
-        var last: Exception? = null
-        for ((i, attempt) in attempts.withIndex()) {
-            if (i > 0) onStep("Méthode de secours, cela peut prendre une minute")
-            try {
-                val s = extract(id, maxHeight, attempt.first, attempt.second)
-                cache[key] = s
-                return s
-            } catch (e: Exception) {
-                last = e
-            }
+        // 1er essai : requête directe à YouTube, moins d'une seconde
+        val native = runCatching { NativeYt.streams(id, maxHeight) }
+        native.getOrNull()?.let { cache[key] = it; return it }
+
+        // Secours : yt-dlp (lent sur le Mi Box, jusqu'à quelques minutes)
+        onStep("Méthode de secours (yt-dlp), cela peut prendre une à deux minutes")
+        ensureReady()
+        val nativeError = native.exceptionOrNull()?.message ?: "?"
+        try {
+            val s = extract(id, maxHeight, null, 240L)
+            cache[key] = s
+            return s
+        } catch (e: Exception) {
+            val ytdlpError = (e.message ?: e.javaClass.simpleName).lines().lastOrNull { it.isNotBlank() }?.take(160)
+            throw IllegalStateException("YouTube : $nativeError. yt-dlp : $ytdlpError")
         }
-        throw last ?: IllegalStateException("aucun flux")
     }
 
     private fun extract(id: String, maxHeight: Int, extractorArgs: String?, timeout: Long): Streams {
