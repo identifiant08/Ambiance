@@ -44,7 +44,6 @@ class PlayerActivity : Activity(), RemoteServer.Listener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        hideSystemBars()
 
         engine = Engine(this) { event -> js("app.onPlayer(${event})") }
 
@@ -68,6 +67,8 @@ class PlayerActivity : Activity(), RemoteServer.Listener {
         root.addView(playerView, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         root.addView(web, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         setContentView(root)
+        // Après setContentView : avant, la fenêtre n'a pas encore de vue racine (plantage sur Android 11)
+        hideSystemBars()
         web.loadUrl(Web.TV_PAGE)
         web.requestFocus()
 
@@ -101,15 +102,17 @@ class PlayerActivity : Activity(), RemoteServer.Listener {
 
     @Suppress("DEPRECATION")
     private fun hideSystemBars() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.insetsController?.let {
-                it.hide(WindowInsets.Type.systemBars())
-                it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                window.decorView.windowInsetsController?.let {
+                    it.hide(WindowInsets.Type.systemBars())
+                    it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+            } else {
+                window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
             }
-        } else {
-            window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
         }
     }
 
