@@ -54,6 +54,10 @@ if pls:
     print('  renderers:', sorted(keys)[:40])
 
 vid = vids[0]
+vd, _ = post('https://www.youtube.com/youtubei/v1/guide?prettyPrint=false', {'context': web_ctx},
+             {'User-Agent': WEB_UA, 'X-Youtube-Client-Name': '1', 'X-Youtube-Client-Version': '2.20260708.00.00', 'Origin': 'https://www.youtube.com'})
+VISITOR = vd.get('responseContext', {}).get('visitorData')
+print('VISITOR', (VISITOR or '')[:20])
 # 3. Player : plusieurs clients
 clients = {
   'VISIONOS': ({'clientName': 'VISIONOS', 'clientVersion': '1.02', 'deviceMake': 'Apple', 'deviceModel': 'RealityDevice17,1',
@@ -66,8 +70,8 @@ clients = {
 for name, (client, num) in clients.items():
     try:
         d, dt = post('https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
-                     {'context': {'client': {**client, 'hl': 'fr', 'gl': 'FR'}}, 'videoId': vid, 'contentCheckOk': True, 'racyCheckOk': True},
-                     {'User-Agent': client['userAgent'], 'X-Youtube-Client-Name': str(num), 'X-Youtube-Client-Version': client['clientVersion'], 'Origin': 'https://www.youtube.com'})
+                     {'context': {'client': {**client, 'hl': 'fr', 'gl': 'FR', 'visitorData': VISITOR}}, 'videoId': vid, 'contentCheckOk': True, 'racyCheckOk': True},
+                     {'User-Agent': client['userAgent'], 'X-Youtube-Client-Name': str(num), 'X-Youtube-Client-Version': client['clientVersion'], 'Origin': 'https://www.youtube.com', 'X-Goog-Visitor-Id': VISITOR})
         ps = d.get('playabilityStatus', {})
         sd = d.get('streamingData', {})
         fm = sd.get('adaptiveFormats', []) + sd.get('formats', [])
