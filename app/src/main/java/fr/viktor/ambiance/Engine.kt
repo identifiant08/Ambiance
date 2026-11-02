@@ -7,6 +7,8 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
@@ -18,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -50,6 +53,9 @@ class Engine(ctx: Context, private val onEvent: (JSONObject) -> Unit) {
     private var retries = 0
     private var skipsInARow = 0
     private var label = ""
+    @Volatile private var lastKbps = 0
+    @Volatile private var bytesLoaded = 0L
+    private var lastPlayerError = ""
 
     var maxHeight: Int = Prefs.quality
 
@@ -75,8 +81,34 @@ class Engine(ctx: Context, private val onEvent: (JSONObject) -> Unit) {
                 if (player.playbackState == Player.STATE_READY) emit(if (isPlaying) "playing" else "paused")
             }
 
-            override fun onPlayerError(error: PlaybackException) = recover(error)
+            override fun onPlayerError(error: PlaybackException) {
+                var cause: Throwable? = error.cause
+                var detail = error.errorCodeName
+                while (cause != null) {
+                    if (cause is HttpDataSource.InvalidResponseCodeException) { detail += " HTTP ${cause.responseCode}"; break }
+                    cause = cause.cause
+                }
+                lastPlayerError = detail
+                Journal.add("Erreur lecteur : $detail ${error.cause?.message?.take(80).orEmpty()}")
+                recover(error)
+            }
         })
+        player.addAnalyticsListener(object : AnalyticsListener {
+            override fun onBandwidthEstimate(eventTime: AnalyticsListener.EventTime, totalLoadTimeMs: Int, totalBytesLoaded: Long, bitrateEstimate: Long) {
+                if (totalLoadTimeMs > 0) lastKbps = (totalBytesLoaded * 8 / totalLoadTimeMs).toInt()
+                bytesLoaded += totalBytesLoaded
+            }
+        })
+        // Pendant la mise en mémoire : on affiche le débit et le tampon, pour voir si ça avance
+        scope.launch {
+            while (true) {
+                delay(2_000)
+                if (player.playbackState == Player.STATE_BUFFERING) {
+                    val buf = player.totalBufferedDuration / 1000
+                    emit("buffering", message = "Mise en mémoire : ${bytesLoaded / 1024} Ko reçus, ${lastKbps} kbit/s, tampon ${buf} s")
+                }
+            }
+        }
     }
 
     // ---------- Commandes ----------
@@ -176,6 +208,8 @@ class Engine(ctx: Context, private val onEvent: (JSONObject) -> Unit) {
                 skip("Vidéo indisponible, je passe à la suivante", ex)
                 return@launch
             }
+            bytesLoaded = 0
+            Journal.add("Lecture de « ${e.title.take(40)} »")
             player.setMediaSource(source(s, e), positionMs)
             player.prepare()
             player.playWhenReady = true
@@ -226,10 +260,10 @@ class Engine(ctx: Context, private val onEvent: (JSONObject) -> Unit) {
         if (retries < 2) {
             retries++
             Resolver.invalidate(e.id)
-            emit("buffering", message = "Reconnexion au flux")
+            emit("buffering", message = "Reconnexion au flux ($lastPlayerError)")
             startCurrent(pos)
         } else {
-            skip("Lecture impossible, je passe à la suivante", error)
+            skip("Lecture impossible ($lastPlayerError), je passe à la suivante", error)
         }
     }
 

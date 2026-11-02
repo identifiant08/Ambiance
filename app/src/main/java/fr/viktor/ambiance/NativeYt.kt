@@ -103,14 +103,22 @@ object NativeYt {
                     "Origin" to "https://www.youtube.com",
                 ))
                 val ps = r.optJSONObject("playabilityStatus")
+                val name = c.ctx.optString("clientName")
                 if (ps?.optString("status") != "OK") {
                     lastError = ps?.optString("reason")?.ifBlank { null } ?: ps?.optString("status") ?: "lecture refusée"
+                    Journal.add("$name refusé : ${ps?.optString("status")} $lastError")
                     continue
                 }
-                pick(r, c, maxHeight)?.let { return it }
+                pick(r, c, maxHeight)?.let {
+                    Journal.add("$name OK : ${if (it.hls) "HLS" else "${it.height}p"}${if (it.audio != null) " + audio séparé" else ""}" +
+                        (if (it.video.contains("&n=") || it.video.contains("?n=")) ", paramètre n présent" else ""))
+                    return it
+                }
                 lastError = "pas de flux direct"
+                Journal.add("$name : réponse sans flux direct")
             } catch (e: Exception) {
                 lastError = e.message ?: e.javaClass.simpleName
+                Journal.add("${c.ctx.optString("clientName")} erreur : $lastError")
             }
         }
         error(lastError)
@@ -141,6 +149,7 @@ object NativeYt {
         val audio = audios.maxByOrNull { it.optInt("bitrate") }
 
         if (video != null && audio != null) {
+            Journal.add("Formats : vidéo ${video.optInt("itag")} ${video.optString("mimeType").substringBefore(';')} ${video.optInt("height")}p, audio ${audio.optInt("itag")}")
             return Streams(video.getString("url"), audio.getString("url"), headers, headers, title, video.optInt("height"))
         }
         // Flux HLS : ExoPlayer choisit lui-même la qualité

@@ -228,6 +228,9 @@ class PlayerActivity : Activity(), RemoteServer.Listener {
         }
 
         @JavascriptInterface
+        fun getLog(): String = Journal.text()
+
+        @JavascriptInterface
         fun reportState(json: String) {
             server?.state = json
         }

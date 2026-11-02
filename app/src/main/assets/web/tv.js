@@ -44,6 +44,11 @@
   }
   const qLabel = (h) => (h >= 2160 ? '4K' : h + 'p');
 
+  /* ---------- Journal (Réglages) ---------- */
+  setInterval(() => {
+    if (screen === 'settings' && A && A.getLog) $('#journal').textContent = A.getLog() || 'Rien pour le moment.';
+  }, 1500);
+
   /* ---------- Écrans et historique ---------- */
   let screen = 'home';
   const hist = [];

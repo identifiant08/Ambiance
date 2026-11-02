@@ -112,3 +112,6 @@ html.playing,html.playing body{background:transparent}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
 @media (prefers-reduced-motion: reduce){*{transition:none!important;scroll-behavior:auto!important}}
+
+.settings-wrap{max-width:none}
+.journal{margin-top:.5rem;max-width:56rem;height:9.5rem;overflow:hidden;font-family:var(--sans);font-size:.62rem;line-height:1.45;color:var(--moon-dim);background:rgba(236,230,214,.06);border-radius:.6rem;padding:.6rem .8rem;white-space:pre-wrap}

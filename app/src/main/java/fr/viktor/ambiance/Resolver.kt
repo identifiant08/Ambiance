@@ -79,11 +79,14 @@ object Resolver {
         native.getOrNull()?.let { cache[key] = it; return it }
 
         // Secours : yt-dlp (lent sur le Mi Box, jusqu'à quelques minutes)
-        onStep("Méthode de secours (yt-dlp), cela peut prendre une à deux minutes")
+        val why = native.exceptionOrNull()?.message?.take(80) ?: "?"
+        Journal.add("Accès direct impossible ($why), yt-dlp en secours")
+        onStep("YouTube : $why. Méthode de secours (yt-dlp), une à deux minutes")
         ensureReady()
         val nativeError = native.exceptionOrNull()?.message ?: "?"
         try {
             val s = extract(id, maxHeight, null, 240L)
+            Journal.add("yt-dlp OK : ${s.height}p")
             cache[key] = s
             return s
         } catch (e: Exception) {
